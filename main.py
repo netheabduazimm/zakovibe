@@ -5,6 +5,24 @@ from aiogram.types import Message
 from aiogram.filters import Command
 from api import TOKEN, ADMIN_ID, ADMIN_ID_S, ALLOWED_USERS
 
+# 🔌 Flask va Thread
+from flask import Flask
+from threading import Thread
+
+# Flask serverni ishga tushirish
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return "✅ Bot ishlayapti!"
+
+def run_flask():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    thread = Thread(target=run_flask)
+    thread.start()
+
 # Log sozlash
 logging.basicConfig(level=logging.INFO)
 
@@ -21,8 +39,8 @@ users = {}
 @router.message(Command("start"))
 async def handle_start(message: Message):
     await message.reply(
-        "👋 Salom!\n\nMen Fabijon — sizning xabaringizni adminlarga yetkazuvchi yordamchingizman.\n"
-        "📌 Buyruqlar:\n🔗 /links – jamoaning barcha sahifalariga havolalar\n"
+        "👋 Salom!\n\nMen sizning xabaringizni adminlarga yetkazuvchi yordamchingizman.\n"
+        "📌 Buyruqlar:\n"
         "👥 /members – jamoa a'zolari haqida ma'lumot\n\n✨ Meni yaratgan inson – @theabduazimm!"
     )
 
@@ -73,7 +91,6 @@ async def forward_any_message(message: Message):
     user = message.from_user
     users[user.id] = user.username
 
-    # Matnli xabar
     caption = (
         f"📩 <b>Yangi xabar!</b>\n"
         f"👤 <b>Kimdan:</b> @{user.username or 'No username'}\n"
@@ -81,29 +98,17 @@ async def forward_any_message(message: Message):
         f"<b>Javob yozish:</b> <code>/reply {user.id} </code>"
     )
 
-    # Media yoki oddiy text xabar
     if message.text:
         full_text = caption + f"\n\n💬 <b>Xabar:</b> \n{message.text}"
         await bot.send_message(ADMIN_ID, full_text, parse_mode="HTML")
         await bot.send_message(ADMIN_ID_S, full_text, parse_mode="HTML")
     else:
-        if message.photo:
-            await message.forward(ADMIN_ID)
-            await message.forward(ADMIN_ID_S)
-            await bot.send_message(ADMIN_ID, caption, parse_mode="HTML")
-            await bot.send_message(ADMIN_ID_S, caption, parse_mode="HTML")
-        elif message.voice:
-            await message.forward(ADMIN_ID)
-            await message.forward(ADMIN_ID_S)
-            await bot.send_message(ADMIN_ID, caption, parse_mode="HTML")
-            await bot.send_message(ADMIN_ID_S, caption, parse_mode="HTML")
-        elif message.document:
+        if message.photo or message.voice or message.document:
             await message.forward(ADMIN_ID)
             await message.forward(ADMIN_ID_S)
             await bot.send_message(ADMIN_ID, caption, parse_mode="HTML")
             await bot.send_message(ADMIN_ID_S, caption, parse_mode="HTML")
         else:
-            # Boshqa turdagi xabar (contact, video, sticker...)
             await message.forward(ADMIN_ID)
             await message.forward(ADMIN_ID_S)
             await bot.send_message(ADMIN_ID, caption + f"\n⚠️ <i>To'g'ridan-to'g'ri forward qilindi.</i>", parse_mode="HTML")
@@ -111,6 +116,7 @@ async def forward_any_message(message: Message):
 
 # Polling boshlash
 async def main():
+    keep_alive()  # 👈 Flask serverni ishga tushirish
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
